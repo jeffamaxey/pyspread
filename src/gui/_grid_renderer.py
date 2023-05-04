@@ -135,18 +135,19 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
         """
         
         row, col, tab = key
-        
-        blocking_distance = None
-        
+
         textbox = self.get_text_rotorect(text_pos, text_extent)
-        
+
+        blocking_distance = None
         for distance, __row, __col in grid.colliding_cells(row, col, textbox):
             # Draw blocking arrows if locking cell is not empty
-            
-            if not( \
-               (blocking_distance is None or distance == blocking_distance) \
-               and not self.data_array[__row, __col, tab]):
-               
+
+            if (
+                blocking_distance is not None
+                and distance != blocking_distance
+                or self.data_array[__row, __col, tab]
+            ):
+
                 yield __row, __col, tab
 
     def _get_empty_cells(self, dc, grid, key, text_pos, text_extent):
@@ -181,12 +182,10 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
         """Returns rects needed by key cell that are in available space"""
         
         yield rect
-        
+
         for cell in self._get_empty_cells(dc, grid, key, text_pos, text_extent):
             __row, __col, _ = cell
-            cell_rect = grid.CellToRect(__row, __col)
-            
-            yield cell_rect
+            yield grid.CellToRect(__row, __col)
 
     def draw_text_label(self, dc, res, rect, grid, key):
         """Draws text label of cell"""
@@ -351,31 +350,33 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
         """Returns text x, y position in cell"""
         
         text_extent = dc.GetTextExtent(res_text)
-        
+
         # Vertical alignment
-        
-        if vertical_align == "middle":
-            string_y = rect.y + rect.height / 2 - text_extent[1] / 2 + 1
-            
-        elif vertical_align == "bottom":
+
+        if vertical_align == "bottom":
             string_y = rect.y + rect.height - text_extent[1]
-        
+
+        elif vertical_align == "middle":
+            string_y = rect.y + rect.height / 2 - text_extent[1] / 2 + 1
+
         elif vertical_align == "top":
             string_y = rect.y + 2
-            
+
         else:
-            raise ValueError, "Vertical alignment " + vertical_align + \
-                              "not in (top, middle, bottom)"
-        
+            raise (
+                ValueError,
+                f"Vertical alignment {vertical_align}not in (top, middle, bottom)",
+            )
+
         # Justification
-        
+
         if justification == "left":
             string_x = rect.x + 2
-            
+
         elif justification == "center":
             # First calculate x value for unrotated text
             string_x = rect.x + rect.width / 2 - 1
-            
+
             # Now map onto rotated xy position
             rot_angle = angle / 180.0 * pi
             string_x = string_x - text_extent[0] / 2 * cos(rot_angle)
@@ -384,15 +385,17 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
         elif justification == "right":
             # First calculate x value for unrotated text
             string_x = rect.x + rect.width - 2
-            
+
             # Now map onto rotated xy position
             rot_angle = angle / 180.0 * pi
             string_x = string_x - text_extent[0] * cos(rot_angle)
             string_y = string_y + text_extent[0] * sin(rot_angle)
         else:
-            raise ValueError, "Cell justification " + justification + \
-                              "not in (left, center, right)"
-    
+            raise (
+                ValueError,
+                f"Cell justification {justification}not in (left, center, right)",
+            )
+
         return string_x, string_y
         
 
@@ -426,48 +429,44 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
         """Draws the cell border and content"""
         
         key = (row, col, grid.current_table)
-        
+
         if isSelected:
             grid.selection_present = True
-            
+
             bg = Background(grid, self.data_array, row, col, grid.current_table,
                             isSelected)
         else:
             _, _, width, height = grid.CellToRect(row, col)
-            
+
             bg_components = ["bgcolor", 
                              "borderwidth_bottom", "borderwidth_right", 
                              "bordercolor_bottom", "bordercolor_right"]
-            
+
             bg_key = tuple([width, height] + \
-                           [self.data_array.cell_attributes[key][bgc] \
-                                            for bgc in bg_components])
-            
+                               [self.data_array.cell_attributes[key][bgc] \
+                                                for bgc in bg_components])
+
             try:
                 bg = self.backgrounds[bg_key]
-                
+
             except KeyError:
                 if len(self.backgrounds) > 10000:
                     # self.backgrounds may grow quickly
-                    
+
                     self.backgrounds = {}
-                
+
                 bg = self.backgrounds[bg_key] = \
-                        Background(grid, self.data_array, *key)
-            
-        if wx.Platform == "__WXGTK__" and not printing:
-            mask_type = wx.AND
-        else:
-            mask_type = wx.COPY
-            
+                            Background(grid, self.data_array, *key)
+
+        mask_type = wx.AND if wx.Platform == "__WXGTK__" and not printing else wx.COPY
         dc.Blit(rect.x, rect.y, rect.width, rect.height,
                 bg.dc, 0, 0, mask_type)
-        
-        
+
+
         # Check if the dc is drawn manually be a return func
-        
+
         res = self.data_array[row, col, grid.current_table]
-        
+
         if type(res) is types.FunctionType:
             # Add func_dict attribute 
             # so that we are sure that it uses a dc
@@ -475,10 +474,10 @@ class GridRenderer(wx.grid.PyGridCellRenderer):
                 res(grid, attr, dc, rect)
             except TypeError:
                 pass
-        
+
         elif res is not None:
             self.draw_text_label(dc, res, rect, grid, key)
-        
+
         if grid.actions.cursor[:2] == (row, col):
             self.update_cursor(dc, grid, row, col)
         

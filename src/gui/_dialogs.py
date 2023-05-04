@@ -427,49 +427,46 @@ class CSVPreviewGrid(wx.grid.Grid):
         
         """
         
-        # Get columns from csv
-        csvfile = open(self.csvfilepath, "rb")
-        csvreader = csv.reader(csvfile, dialect=dialect)
-        
-        first_line = ""
-        for first_line in csvreader:
-            self.shape[1] = len(first_line)
-            break
-        
-        if self.shape[1] > self.GetNumberCols():
-            self.AppendCols(self.shape[1]-self.GetNumberCols())
-        elif self.shape[1] < self.GetNumberCols():
-            self.DeleteCols(pos=self.shape[1]-1, \
-                            numCols=self.GetNumberCols()-self.shape[1])
-        
-        # Retrieve type choices
-        digest_keys = self.get_digest_keys()
-        
-        # Is a header present? --> Import as strings in first line
-        if has_header:
-            for i, header in enumerate(first_line):
-                self.SetCellValue(0, i, header)
-                
-        # Add Choices
-        for col in xrange(self.shape[1]):
-            choice_renderer = ChoiceRenderer(self)
-            choice_editor = wx.grid.GridCellChoiceEditor( \
-                                self.digest_types.keys(), False)
-            self.SetCellRenderer(has_header, col, choice_renderer)
-            self.SetCellEditor(has_header, col, choice_editor)
-            self.SetCellValue(has_header, col, digest_keys[col])
-        
-        # Fill in the rest of the lines
-        if not has_header:
-            csvfile.seek(0)
-        
-        self.dtypes = [self.digest_types[key] for key in self.get_digest_keys()]
-        
-        key = (has_header + 1, 0)
-        fill_wxgrid(self, csvreader, self.dtypes, key)
-        
-        csvfile.close()
-        
+        with open(self.csvfilepath, "rb") as csvfile:
+            csvreader = csv.reader(csvfile, dialect=dialect)
+
+            first_line = ""
+            for first_line in csvreader:
+                self.shape[1] = len(first_line)
+                break
+
+            if self.shape[1] > self.GetNumberCols():
+                self.AppendCols(self.shape[1]-self.GetNumberCols())
+            elif self.shape[1] < self.GetNumberCols():
+                self.DeleteCols(pos=self.shape[1]-1, \
+                                    numCols=self.GetNumberCols()-self.shape[1])
+
+            # Retrieve type choices
+            digest_keys = self.get_digest_keys()
+
+            # Is a header present? --> Import as strings in first line
+            if has_header:
+                for i, header in enumerate(first_line):
+                    self.SetCellValue(0, i, header)
+
+            # Add Choices
+            for col in xrange(self.shape[1]):
+                choice_renderer = ChoiceRenderer(self)
+                choice_editor = wx.grid.GridCellChoiceEditor( \
+                                        self.digest_types.keys(), False)
+                self.SetCellRenderer(has_header, col, choice_renderer)
+                self.SetCellEditor(has_header, col, choice_editor)
+                self.SetCellValue(has_header, col, digest_keys[col])
+
+            # Fill in the rest of the lines
+            if not has_header:
+                csvfile.seek(0)
+
+            self.dtypes = [self.digest_types[key] for key in self.get_digest_keys()]
+
+            key = (has_header + 1, 0)
+            fill_wxgrid(self, csvreader, self.dtypes, key)
+
         self.Refresh()
     
     def get_digest_keys(self):
@@ -995,7 +992,7 @@ class AboutDialog(object):
     def __init__(self, *args, **kwds):
         # First we create and fill the info object
         parent = args[0]
-        
+
         info = wx.AboutDialogInfo()
         info.Name = "pyspread"
         info.Version = config["version"]
@@ -1008,13 +1005,11 @@ class AboutDialog(object):
                         "Pyspread Web site")
         info.Developers = ["Martin Manns"]
         info.DocWriters = ["Martin Manns", "Bosko Markovic"]
-        
-        license_file = open(get_program_path() + "/COPYING", "r")
-        license_text = license_file.read()
-        license_file.close()
-        
+
+        with open(f"{get_program_path()}/COPYING", "r") as license_file:
+            license_text = license_file.read()
         info.License = wordwrap(license_text, 500, wx.ClientDC(parent))
-        
+
         # Then we call wx.AboutBox giving it that info object
         wx.AboutBox(info)
     
@@ -1022,9 +1017,10 @@ class AboutDialog(object):
         """Setup title and label"""
         
         self.SetTitle("About pyspread")
-        
-        self.about_label.SetLabel("pyspread " + VERSION + \
-                                  "\nCopyright Martin Manns 2008-2011")
+
+        self.about_label.SetLabel(
+            (f"pyspread {VERSION}" + "\nCopyright Martin Manns 2008-2011")
+        )
     
     def _do_layout(self):
         """Layout sizers"""

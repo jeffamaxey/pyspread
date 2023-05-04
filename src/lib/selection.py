@@ -70,21 +70,18 @@ class Selection(object):
     def __repr__(self):
         """String output for printing selection"""
         
-        return "Selection" + repr( \
-                   (self.block_tl, 
-                    self.block_br, 
-                    self.rows,
-                    self.cols, 
-                    self.cells))
+        return f"Selection{repr((self.block_tl, self.block_br, self.rows, self.cols, self.cells))}"
     
     def __eq__(self, other):
         assert type(other) is type(self)
-        
-        if (self.block_tl, self.block_br, self.rows, self.cols, self.cells) == \
-          (other.block_tl, other.block_br, other.rows, other.cols, other.cells):
-            return True
-        else:
-            return False
+
+        return (
+            self.block_tl,
+            self.block_br,
+            self.rows,
+            self.cols,
+            self.cells,
+        ) == (other.block_tl, other.block_br, other.rows, other.cols, other.cells)
     
     def __contains__(self, cell):
         """Returns True iif cell is in selection
@@ -98,27 +95,24 @@ class Selection(object):
         """
         
         assert len(cell) == 2
-        
+
         cell_row, cell_col = cell
-        
+
         # Block selections
         for top_left, bottom_right in izip(self.block_tl, self.block_br):
             top, left = top_left
             bottom, right = bottom_right
-            
+
             if top <= cell_row <= bottom and left <= cell_col <= right:
                 return True
-        
+
         # Row and column selections
-        
+
         if cell_row in self.rows or cell_col in self.cols:
             return True
-        
+
         # Cell selections
-        if cell in self.cells:
-            return True
-        
-        return False
+        return cell in self.cells
         
     def __add__(self, value):
         """Shifts selection down and / or right

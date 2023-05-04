@@ -37,12 +37,12 @@ import wx
 def get_program_path():
     """Returns the path in which pyspread is installed"""
     
-    return os.path.dirname(__file__) + '/../'
+    return f'{os.path.dirname(__file__)}/../'
     
 def get_help_path():
     """Returns the pyspread help path"""
     
-    return get_program_path() + "doc/help/"
+    return f"{get_program_path()}doc/help/"
     
 # Screen
 

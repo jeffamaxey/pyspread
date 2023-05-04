@@ -294,16 +294,10 @@ class Grid(wx.grid.Grid):
 
         if abs(diff_row) <= abs(diff_col):
             # Columns are dominant
-            if rect_col < block_col:
-                return "RIGHT"
-            else:
-                return "LEFT"
+            return "RIGHT" if rect_col < block_col else "LEFT"
         else:
             # Rows are dominant
-            if rect_row < block_row:
-                return "DOWN"
-            else:
-                return "UP"
+            return "DOWN" if rect_row < block_row else "UP"
 
 class GridCellEventHandlers(object):
     """Contains grid cell event handlers incl. attribute events"""
@@ -545,40 +539,37 @@ class GridEventHandlers(object):
         """Handles non-standard shortcut events"""
         
         keycode = event.GetKeyCode()
-        
+
         if event.ControlDown():
             if keycode == 388:
                 # Ctrl + + pressed
                 post_command_event(self.grid, ZoomInMsg)
-                
+
             elif keycode == 390:
                 # Ctrl + - pressed
                 post_command_event(self.grid, ZoomOutMsg)
-                
-        else:
-            # No Ctrl pressed
-            
-            if keycode == 127:
-                # Del pressed
-                
-                # Delete cell at cursor
-                cursor = self.grid.actions.cursor
-                self.grid.actions.delete_cell(cursor)
-                
-                # Delete selection
-                self.grid.actions.delete_selection()
-                
-                # Update grid
-                
-                self.grid.ForceRefresh()
-                
-                # Do not enter cell
-                return
-                
-            elif keycode == 27:
-                # Esc pressed
-                self.grid.actions.need_abort = True
-            
+
+        elif keycode == 127:
+            # Del pressed
+
+            # Delete cell at cursor
+            cursor = self.grid.actions.cursor
+            self.grid.actions.delete_cell(cursor)
+
+            # Delete selection
+            self.grid.actions.delete_selection()
+
+            # Update grid
+
+            self.grid.ForceRefresh()
+
+            # Do not enter cell
+            return
+
+        elif keycode == 27:
+            # Esc pressed
+            self.grid.actions.need_abort = True
+
         event.Skip()
 
     def OnScroll(self, event):
@@ -665,24 +656,23 @@ class GridEventHandlers(object):
         gridpos = list(self.grid.actions.cursor)
         text, flags = event.text, event.flags
         findpos = self.grid.actions.find(gridpos, text, flags)
-        
+
         if findpos is None:
             # If nothing is found mention it in the statusbar and return
-            
-            statustext = "'" + text + "' not found."
-        
+
+            statustext = f"'{text}' not found."
+
         else:
             # Otherwise select cell with next occurrence if successful
             self.grid.actions.cursor = findpos
-            
+
             # Update statusbar
-            statustext = "Found '" + text + "' in cell " + \
-                         unicode(list(findpos)) + "."
-            
+            statustext = f"Found '{text}' in cell {unicode(list(findpos))}."
+
         post_command_event(self.grid.main_window, StatusBarMsg, text=statustext)
-        
+
         event.Skip()
-        
+
         return findpos
 
     def OnShowFindReplace(self, event):
@@ -754,18 +744,17 @@ class GridEventHandlers(object):
         
         if bbox is None:
             return 1, 1
-        else:
-            (bb_top, bb_left), (bb_bottom, bb_right) = bbox
-            if bb_top is None:
-                bb_top = 0
-            if bb_left is None:
-                bb_left = 0
-            if bb_bottom is None:
-                bb_bottom = self.grid.code_array.shape[0] - 1
-            if bb_right is None:
-                bb_right = self.grid.code_array.shape[1] - 1
-            
-            return bb_bottom - bb_top + 1, bb_right - bb_left + 1
+        (bb_top, bb_left), (bb_bottom, bb_right) = bbox
+        if bb_top is None:
+            bb_top = 0
+        if bb_left is None:
+            bb_left = 0
+        if bb_bottom is None:
+            bb_bottom = self.grid.code_array.shape[0] - 1
+        if bb_right is None:
+            bb_right = self.grid.code_array.shape[1] - 1
+
+        return bb_bottom - bb_top + 1, bb_right - bb_left + 1
         
     
     def OnInsertRows(self, event):
@@ -838,19 +827,19 @@ class GridEventHandlers(object):
         """Resizes current grid by appending/deleting rows, cols and tables"""
         
         # Get grid dimensions
-        
+
         new_shape = self.interfaces.get_dimensions_from_user(no_dim=3)
-        
+
         if new_shape is None:
             return
-        
+
         self.grid.actions.change_grid_shape(new_shape)
-        
+
         self.grid.GetTable().ResetView()
-        
-        statustext = "Grid dimensions changed to " + str(new_shape) + "."
+
+        statustext = f"Grid dimensions changed to {str(new_shape)}."
         post_command_event(self.grid.main_window, StatusBarMsg, text=statustext)
-        
+
         event.Skip()
 
     # Grid attribute events 

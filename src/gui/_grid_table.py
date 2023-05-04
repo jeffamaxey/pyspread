@@ -73,26 +73,18 @@ class GridTable(wx.grid.PyGridTableBase):
         
         if table is None:
             table = self.grid.current_table
-            
+
         value = self.data_array((row, col, table))
-        
-        if value is None:
-            return u""
-        else:
-            return value
+
+        return u"" if value is None else value
 
     def GetValue(self, row, col, table=None):
         """Return the result value of a cell"""
         
         if table is None:
             table = self.grid.current_table
-        
+
         return self.data_array((row, col, table))
-        
-        if value is None:
-            return u""
-        else:
-            return value
     
     def SetValue(self, row, col, value, refresh=True):
         """Set the value of a cell"""

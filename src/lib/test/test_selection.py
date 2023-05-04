@@ -47,22 +47,22 @@ class TestSelection(object):
         (ele in selection)"""
         
         assert (32, 53) in self.selection
-        assert not (23, 34534534) in self.selection
-        
+        assert (23, 34534534) not in self.selection
+
         # Test block selection
-        
+
         selection = self.SelectionCls([(4, 5)], [(100, 200)], [], [], [])
         cells_in_selection = ((i, j) for i in xrange(4, 100, 5) 
                                      for j in xrange(5, 200, 5))
-        
+
         for cell in cells_in_selection:
             assert cell in selection
-        
+
         cells_not_in_selection = \
-            [(0, 0), (0, 1), (1, 0), (1, 1), (4, 4), (3, 5),
+                [(0, 0), (0, 1), (1, 0), (1, 1), (4, 4), (3, 5),
              (100, 201), (101, 200), (101, 201), (10**10, 10**10),
              [0, 0]]
-        
+
         for cell in cells_not_in_selection:
             assert cell not in selection
         

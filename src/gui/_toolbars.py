@@ -550,8 +550,8 @@ class AttributesToolbar(wx.ToolBar):
         
         """
         
-        toggle_state = not frozen is False
-        
+        toggle_state = frozen is not False
+
         self.ToggleTool(wx.FONTFLAG_MASK, toggle_state)
     
     def _update_underline(self, underlined):

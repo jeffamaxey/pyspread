@@ -72,15 +72,15 @@ class FileActions(object):
     def validate_signature(self, filename):
         """Returns True if a valid signature is present for filename"""
         
-        sigfilename = filename + '.sig'
-        
+        sigfilename = f'{filename}.sig'
+
         try:
             dummy = open(sigfilename)
             dummy.close()
         except IOError:
             # Signature file does not exist
             return False
-        
+
         # Check if the sig is valid for the sigfile
         return verify(sigfilename, filename)
 
@@ -101,17 +101,16 @@ class FileActions(object):
         if self.validate_signature(filepath):
             self.leave_safe_mode()
             post_command_event(self.main_window, SafeModeExitMsg)
-            
+
             statustext = "Valid signature found. File is trusted."
-            post_command_event(self.main_window, StatusBarMsg, text=statustext)
-            
         else:
             self.enter_safe_mode()
             post_command_event(self.main_window, SafeModeEntryMsg)
-            
+
             statustext = "File is not properly signed. Safe mode " + \
-                         "activated. Select File -> Approve to leave safe mode."
-            post_command_event(self.main_window, StatusBarMsg, text=statustext)
+                             "activated. Select File -> Approve to leave safe mode."
+
+        post_command_event(self.main_window, StatusBarMsg, text=statustext)
 
     def _get_file_version(self, infile):
         """Returns infile version string."""
@@ -121,12 +120,11 @@ class FileActions(object):
             break
         for line2 in infile:
             break
-        
+
         if line1.strip() != "[Pyspread save file version]":
-            errortext = "File format unsupported. " + filepath + \
-                " seems not to be a pyspread save file version 0.1."
+            errortext = f"File format unsupported. {filepath} seems not to be a pyspread save file version 0.1."
             raise ValueError, errortext
-        
+
         return line2.strip()
 
     def _abort_open(self, filepath, infile):
@@ -262,9 +260,8 @@ class FileActions(object):
         
         if is_pyme_present() and not self.code_array.safe_mode:
             signature = sign(filepath)
-            signfile = open(filepath + '.sig','wb')
-            signfile.write(signature)
-            signfile.close()
+            with open(f'{filepath}.sig', 'wb') as signfile:
+                signfile.write(signature)
             msg = 'File successfully saved and signed.'
             statustext = 'File saved and signed'
             post_command_event(self.main_window, StatusBarMsg, 
@@ -298,37 +295,37 @@ class FileActions(object):
         """
         
         filepath = event.attr["filepath"]
-        
+
         dict_grid = self.code_array.dict_grid
-        
+
         self.saving = True
         self.need_abort = False
-        
+
         # Print this on IOErrors when writing to the outfile
-        ioerror_statustext = "Error writing to file " + filepath + "."
-        
+        ioerror_statustext = f"Error writing to file {filepath}."
+
         # Save file is compressed
         try:
             outfile = bz2.BZ2File(filepath, "wb")
-            
+
         except IOError:
-            statustext = "Error opening file " + filepath + "."
+            statustext = f"Error opening file {filepath}."
             post_command_event(self.main_window, StatusBarMsg, text=statustext)
             return False
-    
+
         # Header
         try:
             outfile.write("[Pyspread save file version]\n")
             outfile.write("0.1\n")
-            
+
         except IOError:
             post_command_event(self.main_window, StatusBarMsg, 
                                text=ioerror_statustext)
             return False
-        
+
         # The output generators yield the lines for the outfile
         output_generators = [ \
-            # Grid content
+                # Grid content
             dict_grid.grid_to_strings(),
             # Cell attributes
             dict_grid.attributes_to_strings(),
@@ -339,28 +336,28 @@ class FileActions(object):
             # Macros
             dict_grid.macros_to_strings(),
         ]
-        
+
         # Options for self._is_aborted
         abort_options_list = [ \
-            ["Saving grid... ", len(dict_grid), 100000],
+                ["Saving grid... ", len(dict_grid), 100000],
             ["Saving cell attributes... ", len(dict_grid.cell_attributes)],
             ["Saving row heights... ", len(dict_grid.row_heights)],
             ["Saving column widths... ", len(dict_grid.col_widths)],
             ["Saving macros... ", dict_grid.macros.count("\n")],
         ]
-        
+
         # Save cycle
-        
+
         for generator, options in zip(output_generators, abort_options_list):
             for cycle, line in enumerate(generator):
                 try:
                     outfile.write(line.encode("utf-8"))
-                    
+
                 except IOError:
                     post_command_event(self.main_window, StatusBarMsg, 
                                        text=ioerror_statustext)
                     return False
-                
+
                 # Enable abort during long saves
                 if self._is_aborted(cycle, *options):
                     self._abort_save(filepath, outfile)
@@ -369,14 +366,14 @@ class FileActions(object):
         # Save is done
 
         outfile.close()
-        
+
         self.saving = False
-        
+
         # Mark content as unchanged
         post_command_event(self.main_window, ContentChangedMsg, changed=False)
-        
+
         # Sign so that the new file may be retrieved without safe mode
-        
+
         self.sign_file(filepath)
 
 
@@ -794,14 +791,14 @@ class GridActions(object):
         
         if len(value) == 3:
             row, col, tab = value
-            
+
             if tab != self.cursor[2]:
                 post_command_event(self.main_window, GridActionTableSwitchMsg, 
                                    newtable=tab)
         else:
             row, col = value
-        
-        if not (row is None and col is None):
+
+        if row is not None or col is not None:
             self.grid.MakeCellVisible(row, col)
             self.grid.SetGridCursor(row, col)
         
@@ -934,16 +931,15 @@ class FindActions(object):
         
         # Mark content as changed
         post_command_event(self.main_window, ContentChangedMsg, changed=True)
-        
+
         old_code = self.grid.code_array(findpos)
         new_code = old_code.replace(find_string, replace_string)
-    
+
         self.grid.code_array[findpos] = new_code
         self.grid.actions.cursor = findpos
-        
-        statustext = "Replaced '" + old_code + "' with '" + new_code + \
-                     "' in cell " + unicode(list(findpos)) + "."
-                     
+
+        statustext = f"Replaced '{old_code}' with '{new_code}' in cell {unicode(list(findpos))}."
+
         post_command_event(self.main_window, StatusBarMsg, text=statustext)
 
 class AllGridActions(FileActions, TableActions, UnRedoActions, 
@@ -986,21 +982,21 @@ class AllGridActions(FileActions, TableActions, UnRedoActions,
             if total_elements is None:
                 total_elements_str = ""
             else:
-                total_elements_str = " of " + str(total_elements)
-                
+                total_elements_str = f" of {str(total_elements)}"
+
             statustext = statustext + str(cycle) + total_elements_str + \
-                        " elements processed. Press <Esc> to abort."
+                            " elements processed. Press <Esc> to abort."
             post_command_event(self.main_window, StatusBarMsg, 
                        text=statustext)
-            
+
             # Now wait for the statusbar update to be written on screen
             wx.Yield()
-            
+
             # Abort if we have to
             if self.need_abort:
                 # We have to abort`
                 return True
-                
+
         # Continue
         return False
 

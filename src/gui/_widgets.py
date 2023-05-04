@@ -289,7 +289,6 @@ class PythonSTC(stc.StyledTextCtrl):
         
         # check for matching braces
         brace_at_caret = -1
-        brace_opposite = -1
         char_before = None
         caret_pos = self.GetCurrentPos()
 
@@ -299,7 +298,7 @@ class PythonSTC(stc.StyledTextCtrl):
 
         # check before
         if char_before and chr(char_before) in "[]{}()" and \
-           style_before == stc.STC_P_OPERATOR:
+               style_before == stc.STC_P_OPERATOR:
             brace_at_caret = caret_pos - 1
 
         # check after
@@ -308,12 +307,10 @@ class PythonSTC(stc.StyledTextCtrl):
             style_after = self.GetStyleAt(caret_pos)
 
             if char_after and chr(char_after) in "[]{}()" and \
-               style_after == stc.STC_P_OPERATOR:
+                   style_after == stc.STC_P_OPERATOR:
                 brace_at_caret = caret_pos
 
-        if brace_at_caret >= 0:
-            brace_opposite = self.BraceMatch(brace_at_caret)
-
+        brace_opposite = self.BraceMatch(brace_at_caret) if brace_at_caret >= 0 else -1
         if brace_at_caret != -1  and brace_opposite == -1:
             self.BraceBadLight(brace_at_caret)
         else:
@@ -322,26 +319,27 @@ class PythonSTC(stc.StyledTextCtrl):
     def OnMarginClick(self, evt):
         """When clicked, old and unfold as needed"""
         
-        if evt.GetMargin() == 2:
-            if evt.GetShift() and evt.GetControl():
-                self.fold_all()
-            else:
-                line_clicked = self.LineFromPosition(evt.GetPosition())
+        if evt.GetMargin() != 2:
+            return
+        if evt.GetShift() and evt.GetControl():
+            self.fold_all()
+        else:
+            line_clicked = self.LineFromPosition(evt.GetPosition())
 
-                if self.GetFoldLevel(line_clicked) & \
+            if self.GetFoldLevel(line_clicked) & \
                    stc.STC_FOLDLEVELHEADERFLAG:
-                    if evt.GetShift():
-                        self.SetFoldExpanded(line_clicked, True)
-                        self.expand(line_clicked, True, True, 1)
-                    elif evt.GetControl():
-                        if self.GetFoldExpanded(line_clicked):
-                            self.SetFoldExpanded(line_clicked, False)
-                            self.expand(line_clicked, False, True, 0)
-                        else:
-                            self.SetFoldExpanded(line_clicked, True)
-                            self.expand(line_clicked, True, True, 100)
+                if evt.GetShift():
+                    self.SetFoldExpanded(line_clicked, True)
+                    self.expand(line_clicked, True, True, 1)
+                elif evt.GetControl():
+                    if self.GetFoldExpanded(line_clicked):
+                        self.SetFoldExpanded(line_clicked, False)
+                        self.expand(line_clicked, False, True, 0)
                     else:
-                        self.ToggleFold(line_clicked)
+                        self.SetFoldExpanded(line_clicked, True)
+                        self.expand(line_clicked, True, True, 100)
+                else:
+                    self.ToggleFold(line_clicked)
     
     def fold_all(self):
         """Folds/unfolds all levels in the editor"""
@@ -380,30 +378,26 @@ class PythonSTC(stc.StyledTextCtrl):
         
         lastchild = self.GetLastChild(line, level)
         line += 1
-        
+
         while line <= lastchild:
-            if force:
-                if vislevels > 0:
-                    self.ShowLines(line, line)
-                else:
-                    self.HideLines(line, line)
-            elif do_expand:
+            if force and vislevels > 0 or not force and do_expand:
                 self.ShowLines(line, line)
-            
+            elif force:
+                self.HideLines(line, line)
             if level == -1:
                 level = self.GetFoldLevel(line)
-            
+
             if level & stc.STC_FOLDLEVELHEADERFLAG:
                 if force:
                     self.SetFoldExpanded(line, vislevels - 1)
                     line = self.expand(line, do_expand, force, vislevels-1)
-                
+
                 else:
                     expandsub = do_expand and self.GetFoldExpanded(line)
                     line = self.expand(line, expandsub, force, vislevels-1)
             else:
                 line += 1
-        
+
         return line
         
 # end of class PythonSTC
@@ -491,10 +485,7 @@ class PenStyleComboBox(ImageComboBox):
         """
         
         # Simply demonstrate the ability to have variable-height items
-        if item & 1:
-            return 36
-        else:
-            return 24
+        return 36 if item & 1 else 24
     
     def OnMeasureItemWidth(self, item):
         """Callback for item width, or -1 for default/undetermined
@@ -510,30 +501,22 @@ class PenWidthComboBox(ImageComboBox):
     """Combo box for choosing line width for cell borders"""
     
     def OnDrawItem(self, dc, rect, item, flags):
-    
+
         if item == wx.NOT_FOUND:
             return
-        
+
         r = wx.Rect(*rect)  # make a copy
         r.Deflate(3, 5)
-        
-        pen_style = wx.SOLID
-        if item == 0:
-            pen_style = wx.TRANSPARENT
+
+        pen_style = wx.TRANSPARENT if item == 0 else wx.SOLID
         pen = wx.Pen(dc.GetTextForeground(), item, pen_style)
         pen.SetCap(wx.CAP_BUTT)
-        
+
         dc.SetPen(pen)
-        
-        if flags & wx.combo.ODCB_PAINTING_CONTROL:
-            # for painting the control itself
-            dc.DrawLine(r.x+5, r.y+r.height/2, 
-                        r.x+r.width - 5, r.y+r.height/2)
-        
-        else:
-            # for painting the items in the popup
-            dc.DrawLine(r.x + 5, r.y + r.height / 2, 
-                        r.x + r.width - 5, r.y + r.height / 2)
+
+        # for painting the control itself
+        dc.DrawLine(r.x+5, r.y+r.height/2, 
+                    r.x+r.width - 5, r.y+r.height/2)
     
 # end of class PenWidthComboBox
 

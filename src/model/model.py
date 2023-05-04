@@ -125,26 +125,26 @@ class CellAttributes(list):
     def __getitem__(self, key):
         """Returns attribute dict for a single key"""
         
-        assert not any(type(key_ele) is SliceType for key_ele in key)
-        
+        assert all(type(key_ele) is not SliceType for key_ele in key)
+
         if key in self._attr_cache:
            cache_len, cache_dict = self._attr_cache[key]
-           
+
            # Use cache result only if no new attrs have been defined 
            if cache_len == len(self):
                return cache_dict
-        
+
         row, col, tab  = key
-        
+
         result_dict = copy(self.default_cell_attributes)
-        
+
         for selection, table, attr_dict in self:
             if tab == table and (row, col) in selection:
                 result_dict.update(attr_dict)
-        
+
         # Upddate cache with current length and dict
         self._attr_cache[key] = (len(self), result_dict)
-        
+
         return result_dict
 
 # End of class CellAttributes
@@ -271,20 +271,18 @@ class StringGeneratorMixin(object):
         """
         
         yield u"[attributes]\n"
-        
+
         for selection, tab, attr_dict in self.cell_attributes:
             sel_list = [selection.block_tl, selection.block_br, 
                         selection.rows, selection.cols, selection.cells]
-                        
+
             tab_list = [tab]
-            
+
             attr_dict_list = []
             for key in attr_dict:
-                attr_dict_list.append(key)
-                attr_dict_list.append(attr_dict[key])
-                
+                attr_dict_list.extend((key, attr_dict[key]))
             line_list = map(repr, sel_list + tab_list + attr_dict_list)
-            
+
             yield u"\t".join(line_list) + u"\n"
             
             
@@ -669,53 +667,51 @@ class DataArray(object):
         """Adjusts cell attributes on insertion/deletion"""
         
         assert axis in [0, 1, 2]
-        
+
         # Save cell_attributes for undo
         old_cell_attributes = copy(self.cell_attributes)
-        
+
         if axis < 2:
             # Adjust selections
             for selection, _, _ in self.cell_attributes:
                 selection.insert(insertion_point, no_to_insert, axis)
-                
+
             self.cell_attributes._attr_cache.clear()
-            
+
             # Adjust row heights and col widths
             cell_sizes = self.col_widths if axis else self.row_heights
-            
+
             new_sizes = {}
-            
+
             for pos, tab in cell_sizes:
                 if pos > insertion_point:
                     new_sizes[(pos+no_to_insert, tab)] = cell_sizes[(pos, tab)]
                     cell_sizes[(pos, tab)] = None
                 else:
                     new_sizes[(pos, tab)] = cell_sizes[(pos, tab)]
-            
+
             cell_sizes.update(new_sizes)
-            
+
         elif axis == 2:
-            # Adjust tabs
-            new_tabs = []
-            for _, old_tab, _ in self.cell_attributes:
-                new_tabs.append(old_tab + no_to_insert \
-                                if old_tab > insertion_point else old_tab)
-            
+            new_tabs = [
+                old_tab + no_to_insert if old_tab > insertion_point else old_tab
+                for _, old_tab, _ in self.cell_attributes
+            ]
             for i, new_tab in new_tabs:
                 self.cell_attributes[i][1] = new_tab
-                
+
             self.cell_attributes._attr_cache.clear()
-            
+
         else:
             raise ValueError, "axis must be in [0, 1, 2]"
-        
+
         # Make undoable
-        
+
         undo_operation = (self._adjust_cell_attributes, 
                           [insertion_point, -no_to_insert, axis])
         redo_operation = (self._adjust_cell_attributes, 
                           [insertion_point, no_to_insert, axis]) 
-        
+
         self.unredo.append(undo_operation, redo_operation)
     
     def insert(self, insertion_point, no_to_insert, axis):
@@ -1021,18 +1017,18 @@ class CodeArray(DataArray):
         """
         
         assert "UP" in flags or "DOWN" in flags
-        assert not ("UP" in flags and "DOWN" in flags)
-        
+        assert "UP" not in flags or "DOWN" not in flags
+
         # List of keys in sgrid in search order
-        
+
         reverse = "UP" in flags
-        
+
         for key in sorted_keys(self.keys(), startkey, reverse=reverse):
             code = self(key)
             res_str = unicode(self[key])
-            
+
             if string_match(code, find_string, flags) is not None or \
-               string_match(res_str, find_string, flags) is not None:
+                   string_match(res_str, find_string, flags) is not None:
                 return key
     
 # End of class CodeArray

@@ -145,13 +145,11 @@ class CsvInterface(object):
     def write(self, iterable):
         """Writes values from iterable into CSV file"""
         
-        csvfile = open(self.path, "wb")
-        csv_writer = csv.writer(csvfile, self.dialect)
-        
-        for line in iterable:
-            csv_writer.writerow(line)
-        
-        csvfile.close()
+        with open(self.path, "wb") as csvfile:
+            csv_writer = csv.writer(csvfile, self.dialect)
+
+            for line in iterable:
+                csv_writer.writerow(line)
 
 
 class TxtGenerator(object):
@@ -169,9 +167,7 @@ class TxtGenerator(object):
 
     def __iter__(self):
         for line in self.infile:
-            for col in line.split():
-                yield col
-        
+            yield from line.split()
         infile.close()
 
 class ExchangeActions(object):
@@ -217,7 +213,7 @@ class ExchangeActions(object):
         
         # Mark content as changed
         post_command_event(self.main_window, ContentChangedMsg, changed=True)
-        
+
         if filterindex == 0:
             # CSV import option choice
             return self._import_csv(filepath)
@@ -225,9 +221,9 @@ class ExchangeActions(object):
             # TXT import option choice
             return self._import_txt(filepath)
         else:
-            msg = "Unknown import choice" + str(filterindex)
+            msg = f"Unknown import choice{str(filterindex)}"
             short_msg = 'Error reading CSV file'
-            
+
             self.main_window.interfaces.display_warning(msg, short_msg)
 
 
@@ -513,9 +509,8 @@ class MacroActions(object):
         
         """
         
-        macro_outfile = open(filepath, "w")
-        macro_outfile.write(macros)
-        macro_outfile.close()
+        with open(filepath, "w") as macro_outfile:
+            macro_outfile.write(macros)
 
 
 class HelpActions(object):
@@ -536,34 +531,33 @@ class HelpActions(object):
         """
         
         # Set up window
-        
+
         position = config["help_window_position"]
         size = config["help_window_size"]
-        
+
         help_window = wx.Frame(self.main_window, -1, helpname, position, size)
         help_htmlwindow = wx.html.HtmlWindow(help_window, -1, (0, 0), size)
-        
+
         help_window.Bind(wx.EVT_MOVE, self.OnHelpMove)
         help_window.Bind(wx.EVT_SIZE, self.OnHelpSize)
-        
+
         # Get help data
         current_path = os.getcwd()
         os.chdir(get_help_path())
-        
+
         try:
-            help_file = open(filename, "r")
-            help_html = help_file.read()
-            help_file.close()
+            with open(filename, "r") as help_file:
+                help_html = help_file.read()
             help_htmlwindow.SetPage(help_html)
-        
+
         except IOError:
-            
+
             help_htmlwindow.LoadPage(filename)
-        
+
         # Show tutorial window
-        
+
         help_window.Show()
-        
+
         os.chdir(current_path)
     
     def OnHelpMove(self, event):

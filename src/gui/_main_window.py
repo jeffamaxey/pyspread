@@ -313,15 +313,15 @@ class MainWindowEventHandlers(object):
         """Titlebar star adjustment event handler"""
         
         self.main_window.changed_since_save = event.changed
-        
+
         title = self.main_window.GetTitle()
-        
+
         if event.changed:
             # Put * in front of title
             if title[:2] != "* ":
-                new_title = "* " + title
+                new_title = f"* {title}"
                 post_command_event(self.main_window, TitleMsg, text=new_title)
-                
+
         elif title[:2] == "* ":
             # Remove * in front of title
             new_title = title[2:]
@@ -453,94 +453,94 @@ class MainWindowEventHandlers(object):
         """New grid event handler"""
         
         # If changes have taken place save of old grid
-        
+
         if self.main_window.changed_since_save:
             save_choice = self.interfaces.get_save_request_from_user()
-            
+
             if save_choice is None:
                 # Cancelled close operation
                 return
-                
+
             elif save_choice:
                 # User wants to save content
                 post_command_event(self.main_window, SaveMsg)
-        
+
         # Get grid dimensions
-        
+
         shape = self.interfaces.get_dimensions_from_user(no_dim=3)
-        
+
         if shape is None:
             return
-            
+
         self.main_window.grid.actions.change_grid_shape(shape)
-        
+
         # Set new filepath and post it to the title bar
-        
+
         self.main_window.filepath = None
         post_command_event(self.main_window, TitleMsg, text="pyspread")
-        
+
         # Create new grid
         post_command_event(self.main_window, GridActionNewMsg, shape=shape)
-        
+
         # Update TableChoiceIntCtrl
         post_command_event(self.main_window, ResizeGridMsg, shape=shape)
-        
+
         self.main_window.grid.GetTable().ResetView()
         self.main_window.grid.ForceRefresh()
-        
+
         # Display grid creation in status bar
-        statustext = "New grid with dimensions " + str(shape) + " created."
+        statustext = f"New grid with dimensions {str(shape)} created."
         post_command_event(self.main_window, StatusBarMsg, text=statustext)
-        
+
         self.main_window.grid.ForceRefresh()
 
     def OnOpen(self, event):
         """File open event handler"""
         
         # If changes have taken place save of old grid
-        
+
         if self.main_window.changed_since_save:
             save_choice = self.interfaces.get_save_request_from_user()
-            
+
             if save_choice is None:
                 # Cancelled close operation
                 return
-                
+
             elif save_choice:
                 # User wants to save content
                 post_command_event(self.main_window, SaveMsg)
-        
+
         # Get filepath from user
-        
+
         wildcard = "Pyspread file (*.pys)|*.pys|" \
-                   "All files (*.*)|*.*"
+                       "All files (*.*)|*.*"
         message = "Choose pyspread file to open."
         style = wx.OPEN | wx.CHANGE_DIR
         filepath, filterindex = self.interfaces.get_filepath_findex_from_user( \
-                                    wildcard, message, style)
-        
+                                        wildcard, message, style)
+
         if filepath is None:
             return
-        
+
         # Change the main window filepath state
-        
+
         self.main_window.filepath = filepath
-            
+
         # Load file into grid
-        
+
         post_command_event(self.main_window, GridActionOpenMsg, 
                            attr={"filepath": filepath})
-        
+
         # Set Window title to new filepath
-        
+
         title_text = filepath.split("/")[-1] + " - pyspread"
         post_command_event(self.main_window, TitleMsg, text=title_text)
-        
+
         # Display file load in status bar
-        
-        statustext = "File " + filepath + " loaded."
+
+        statustext = f"File {filepath} loaded."
         post_command_event(self.main_window, StatusBarMsg, text=statustext)
-        
+
         self.main_window.grid.ForceRefresh()
     
     def OnSave(self, event):
@@ -566,26 +566,25 @@ class MainWindowEventHandlers(object):
         """File save as event handler"""
         
         # Get filepath from user
-        
+
         wildcard = "Pyspread file (*.pys)|*.pys|" \
-                   "All files (*.*)|*.*"
+                       "All files (*.*)|*.*"
         message = "Choose filename for saving."
         style = wx.SAVE | wx.CHANGE_DIR
         filepath, filterindex = self.interfaces.get_filepath_findex_from_user( \
-                                    wildcard, message, style)
-        
+                                        wildcard, message, style)
+
         if filepath is not None:
             
             # Look if path is already present
             if os.path.exists(filepath):
                 if os.path.isfile(filepath):
                     # There is a file with the same path
-                    message = "The file " + filepath + \
-                              " is already present.\nOverwrite?"
+                    message = (f"The file {filepath}" + " is already present.\nOverwrite?")
                     short_message = "File collison"
                     if not self.main_window.interfaces.get_warning_choice( \
-                                message, short_message):
-                        
+                                    message, short_message):
+
                         statustext = "File present. Save aborted by user."
                         post_command_event(self.main_window, StatusBarMsg, 
                                        text=statustext)
@@ -596,23 +595,23 @@ class MainWindowEventHandlers(object):
                     post_command_event(self.main_window, StatusBarMsg, 
                                        text=statustext)
                     return 0
-            
+
             # Put pys suffix if wildcard choice is 0
-            
+
             if filterindex == 0 and filepath[-4:] != ".pys":
                 filepath += ".pys"
-            
+
             # Set the filepath state
-            
+
             self.main_window.filepath = filepath
-            
+
             # Set Window title to new filepath
-        
+
             title_text = filepath.split("/")[-1] + " - pyspread"
             post_command_event(self.main_window, TitleMsg, text=title_text)
-            
+
             # Now jump to save
-            
+
             post_command_event(self.main_window, SaveMsg)
                 
     def OnImport(self, event):
@@ -785,21 +784,19 @@ class MainWindowEventHandlers(object):
         """Clipboard paste event handler"""
         
         focus = self.main_window.FindFocus()
-        
-        if isinstance(focus, wx.TextCtrl):
-            pass
-        else: # We got a grid selection
+
+        if not isinstance(focus, wx.TextCtrl):
             grid = self.main_window.grid
             key = (grid.GetGridCursorRow(), \
-                   grid.GetGridCursorCol(), \
-                   grid.current_table)
-                   
+                       grid.GetGridCursorCol(), \
+                       grid.current_table)
+
             data = self.main_window.clipboard.get_clipboard()
-        
+
             self.main_window.actions.paste(key, data)
-        
+
         self.main_window.grid.ForceRefresh()
-        
+
         event.Skip()
     
     # View events

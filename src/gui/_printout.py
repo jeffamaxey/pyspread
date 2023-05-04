@@ -144,10 +144,7 @@ class Printout(wx.Printout):
         super(Printout, self).OnPreparePrinting()
 
     def HasPage(self, page):
-        if page <= 2:
-            return True
-        else:
-            return False
+        return page <= 2
 
     def GetPageInfo(self):
         return (1, 1, 1, 1)

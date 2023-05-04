@@ -105,14 +105,11 @@ def sorted_keys(keys, startkey, reverse=False):
         tuple_cmp = lambda t: t[::-1] > startkey[::-1]
     else:
         tuple_cmp = lambda t: t[::-1] < startkey[::-1]
-        
+
     searchkeys = sorted(keys, key=tuple_key, reverse=reverse)
     searchpos = sum(1 for _ in ifilter(tuple_cmp, searchkeys))
-    
-    searchkeys = searchkeys[searchpos:] + searchkeys[:searchpos]
-    
-    for key in searchkeys:
-        yield key
+
+    yield from searchkeys[searchpos:] + searchkeys[:searchpos]
 
 
 def sniff(csvfilepath):
@@ -123,14 +120,12 @@ def sniff(csvfilepath):
     
     """
     
-    csvfile = open(csvfilepath, "rb")
-    sample = csvfile.read(config["sniff_size"])
-    csvfile.close()
-    
+    with open(csvfilepath, "rb") as csvfile:
+        sample = csvfile.read(config["sniff_size"])
     sniffer = csv.Sniffer()
     dialect = sniffer.sniff(sample)()
     has_header = sniffer.has_header(sample)
-    
+
     return dialect, has_header
 
 def fill_wxgrid(target, src_it, digest_types, key=(0, 0)):
@@ -190,12 +185,8 @@ def _passphrase_callback(hint='', desc='', prev_bad=''):
 def _get_file_data(filename):
     """Returns pyme.core.Data object of file."""
     
-    # Required because of unicode bug in pyme
-    
-    infile = open(filename, "rb")
-    infile_content = infile.read()
-    infile.close()
-    
+    with open(filename, "rb") as infile:
+        infile_content = infile.read()
     return core.Data(string=infile_content)
 
 
@@ -226,27 +217,25 @@ def sign(filename):
     """Returns detached signature for file"""
     
     plaintext = _get_file_data(filename)
-    
+
     ciphertext = core.Data()
-    
+
     ctx = core.Context()
 
     ctx.set_armor(1)
     ctx.set_passphrase_cb(_passphrase_callback)
-    
+
     ctx.op_keylist_start(config["gpg_key_uid"], 0)
     sigkey = ctx.op_keylist_next()
     ##print sigkey.uids[0].uid
-    
+
     ctx.signers_clear()
     ctx.signers_add(sigkey)
-    
+
     ctx.op_sign(plaintext, ciphertext, pygpgme.GPGME_SIG_MODE_DETACH)
-    
+
     ciphertext.seek(0, 0)
-    signature = ciphertext.read()
-    
-    return signature
+    return ciphertext.read()
 
 def verify(sigfilename, filefilename=None):
     """Verifies a signature, returns True if successful else False."""
@@ -255,7 +244,7 @@ def verify(sigfilename, filefilename=None):
 
     # Create Data with signed text.
     __signature = _get_file_data(sigfilename)
-    
+
     if filefilename:
         __file = _get_file_data(filefilename)
         __plain = None
@@ -268,17 +257,10 @@ def verify(sigfilename, filefilename=None):
         c.op_verify(__signature, __file, __plain)
     except pyme.errors.GPGMEError:
         return False
-    
+
     result = c.op_verify_result()
-    
-    # List results for all signatures. Status equal 0 means "Ok".
-    validation_sucess = False
-    
-    for sign in result.signatures:
-        if (not sign.status) and sign.validity:
-            validation_sucess = True
-    
-    return validation_sucess
+
+    return any((not sign.status) and sign.validity for sign in result.signatures)
 
 def get_font_from_data(fontdata):
     """Returns wx.Font from fontdata string"""
@@ -325,21 +307,18 @@ def string_match(datastring, findstring, flags=None):
     
     if type(datastring) is types.IntType: # Empty cell
         return None
-    
+
     if flags is None:
         flags = []
-    
+
     if "REG_EXP" in flags:
         match = re.search(findstring, datastring)
-        if match is None:
-            pos = -1
-        else:
-            pos = match.start()
+        pos = -1 if match is None else match.start()
     else:
         if "MATCH_CASE" not in flags:
             datastring = datastring.lower()
             findstring = findstring.lower()
-        
+
         if "WHOLE_WORD" in flags:
             pos = -1
             for match in re.finditer(r'\b' + findstring + r'+\b', datastring):
@@ -347,11 +326,8 @@ def string_match(datastring, findstring, flags=None):
                 break # find 1st occurrance
         else:
             pos = datastring.find(findstring)
-    
-    if pos == -1:
-        return None
-    else:
-        return pos
+
+    return None if pos == -1 else pos
 
 class Clipboard(object):
     """Clipboard access
@@ -382,9 +358,7 @@ class Clipboard(object):
         if datastring is None:
             datastring = self.get_clipboard()
 
-        data_it = ((ele for ele in line.split(sep)) \
-                            for line in datastring.splitlines())
-        return data_it
+        return (iter(line.split(sep)) for line in datastring.splitlines())
 
     def get_clipboard(self):
         """Returns the clipboard text content"""
@@ -496,86 +470,80 @@ class Digest(object):
 
         self.acceptable_types = acceptable_types
         self.fallback_type = fallback_type
-        
+
         # Type conversion functions
-        
+
         def make_string(obj):
             """Makes a string object from any object"""
-            
+
             if type(obj) is types.StringType:
                 return obj
-            
+
             if obj is None:
                 return ""
             try:
                 return str(obj)
             except Exception:
                 return repr(obj)
-        
+
         def make_unicode(obj):
             """Makes a unicode object from any object"""
             
             if type(obj) is types.UnicodeType:
                 return obj
-            
-            if obj is None:
-                return u""
-            
-            return unicode(obj)
-        
+
+            return u"" if obj is None else unicode(obj)
+
         def make_slice(obj):
             """Makes a slice object from slice or int"""
             
-            if isinstance(obj, slice):
-                return obj
-            
-            return slice(obj, obj + 1, None)
-        
+            return obj if isinstance(obj, slice) else slice(obj, obj + 1, None)
+
         def make_date(obj):
             """Makes a date from comparable types"""
-            
+
             from dateutil.parser import parse
             return parse(obj).date()
-        
+
         def make_datetime(obj):
             """Makes a datetime from comparable types"""
-            
+
             from dateutil.parser import parse
             return parse(obj)
-        
+
         def make_time(obj):
             """Makes a time from comparable types"""
-            
+
             from dateutil.parser import parse
             return parse(obj).time()
-        
-        
+
+
         def make_object(obj):
             """Returns the object"""
-            
+
             return obj
 
         self.typehandlers = { \
-            None: make_repr, \
-            types.StringType: make_string, \
-            types.UnicodeType: make_unicode, \
-            types.SliceType: make_slice, \
-            types.BooleanType: bool, \
-            types.ObjectType: make_object, \
-            types.IntType: int, \
-            types.FloatType: float, \
-            types.CodeType: make_object, \
-            datetime.date: make_date, \
-            datetime.datetime: make_datetime, \
-            datetime.time: make_time, \
-            }
+                None: make_repr, \
+                types.StringType: make_string, \
+                types.UnicodeType: make_unicode, \
+                types.SliceType: make_slice, \
+                types.BooleanType: bool, \
+                types.ObjectType: make_object, \
+                types.IntType: int, \
+                types.FloatType: float, \
+                types.CodeType: make_object, \
+                datetime.date: make_date, \
+                datetime.datetime: make_datetime, \
+                datetime.time: make_time, \
+                }
 
         if self.fallback_type is not None and \
-           self.fallback_type not in self.typehandlers:
+               self.fallback_type not in self.typehandlers:
 
             err_msg = " ".join(["Fallback type", \
-                                str(self.fallback_type), \
-                                "unknown."])
+                                    str(self.fallback_type), \
+                                    "unknown."])
             raise NotImplementedError, err_msg
 
     def __call__(self, orig_obj):
@@ -628,18 +596,15 @@ class Validator(wx.PyValidator):
     def Validate(self, win):
         tc = self.GetWindow()
         val = tc.GetValue()
-        
-        if self.flag == ALPHA_ONLY:
-            for x in val:
-                if x not in string.letters:
-                    return False
 
-        elif self.flag == DIGIT_ONLY:
-            for x in val:
-                if x not in string.digits:
-                    return False
-
-        return True
+        return not any(
+            self.flag == ALPHA_ONLY
+            and x not in string.letters
+            or self.flag != ALPHA_ONLY
+            and self.flag == DIGIT_ONLY
+            and x not in string.digits
+            for x in val
+        )
 
 
     def OnChar(self, event):

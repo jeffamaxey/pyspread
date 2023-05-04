@@ -5,7 +5,7 @@ import os
 from sys import path
 
 test_path = os.path.dirname(os.path.realpath(__file__))
-path.insert(0, test_path + "/../..")
+path.insert(0, f"{test_path}/../..")
 
 class TestCellActions(object):
     """Cell actions test class"""

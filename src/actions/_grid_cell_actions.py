@@ -46,11 +46,11 @@ class CellActions(object):
         """Sets code of cell key, marks grid as changed"""
         
         old_code = self.grid.code_array(key)
-        
-        if not (old_code is None and not code) and code != old_code:
+
+        if (old_code is not None or code) and code != old_code:
             # Mark content as changed
             post_command_event(self.main_window, ContentChangedMsg, changed=True)
-            
+
         # Set cell code
         self.grid.code_array[key] = code
 
@@ -66,19 +66,19 @@ class CellActions(object):
         """Returns absolute reference code for key."""
         
         key_str = u", ".join(map(str, ref_key))
-        return u"S[" + key_str + u"]"
+        return f"S[{key_str}]"
 
     def _get_relative_reference(self, key, ref_key):
         """Returns absolute reference code for key."""
         
         magics = ["X+", "Y+", "Z+"]
-        
+
         # mapper takes magic, key, ref_key to build string
         mapper = lambda val: val[0] + str(val[2] - val[1])
-        
+
         key_str = u", ".join(map(mapper, zip(magics, key, ref_key)))
-        
-        return u"S[" + key_str + u"]"
+
+        return f"S[{key_str}]"
 
     def append_reference_code(self, key, ref_key, ref_type="absolute"):
         """Appends reference code to cell code. 
@@ -167,62 +167,58 @@ class CellActions(object):
         # determine selection for core cells and selection for border cells
         # Then apply according to inner and outer
         # A cell is inner iif it is not at the edge of the selection bbox
-        
+
         if "inner" in borders:
             if "top" in borders:
                 adj_selection = selection + (-1, 0)
-                self.set_attr(attr + "_bottom", value, adj_selection)
-            
+                self.set_attr(f"{attr}_bottom", value, adj_selection)
+
             if "bottom" in borders:
-                self.set_attr(attr + "_bottom", value)
-                
+                self.set_attr(f"{attr}_bottom", value)
+
             if "left" in borders:
                 adj_selection = selection + (0, -1)
-                self.set_attr(attr + "_right", value, adj_selection)
-            
+                self.set_attr(f"{attr}_right", value, adj_selection)
+
             if "right" in borders:
-                self.set_attr(attr + "_right", value)
-            
+                self.set_attr(f"{attr}_right", value)
+
         else:
             # Adjust selection so that only bounding box edge is in selection
             bbox_tl, bbox_lr = selection.get_bbox()
             if "top" in borders:
                 adj_selection = Selection([bbox_tl], [(bbox_tl[0], bbox_lr[1])],
                                           [], [], []) + (-1, 0)
-                self.set_attr(attr + "_bottom", value, adj_selection)
-            
+                self.set_attr(f"{attr}_bottom", value, adj_selection)
+
             if "bottom" in borders:
                 adj_selection = Selection([(bbox_lr[0], bbox_tl[1])], [bbox_lr],
                                           [], [], [])
-                self.set_attr(attr + "_bottom", value, adj_selection)
-                
+                self.set_attr(f"{attr}_bottom", value, adj_selection)
+
             if "left" in borders:
                 adj_selection = Selection([bbox_tl], [(bbox_lr[0], bbox_tl[1])],
                                           [], [], []) + (0, -1)
-                self.set_attr(attr + "_right", value, adj_selection)
-            
+                self.set_attr(f"{attr}_right", value, adj_selection)
+
             if "right" in borders:
                 adj_selection = Selection([(bbox_tl[0], bbox_lr[1])], [bbox_lr],
                                           [], [], [])
-                self.set_attr(attr + "_right", value, adj_selection)
+                self.set_attr(f"{attr}_right", value, adj_selection)
             
 
     
     def toggle_attr(self, attr):
         """Toggles an attribute attr for current selection"""
         
-        selection = self.grid.selection
-        
-        # Selection or single cell access?
-        
-        if selection:
+        if selection := self.grid.selection:
             value = self.get_new_selection_attr_state(selection, attr)
-            
+
         else:
             value = self.get_new_cell_attr_state(self.cursor, attr)
-        
+
         # Set the toggled value
-        
+
         self.set_attr(attr, value)
     
     # Only cell attributes that can be toogled are contained
@@ -231,26 +227,21 @@ class CellActions(object):
         """Changes frozen state of cell if there is no selection"""
         
         # Selections are not supported
-        
+
         if self.grid.selection:
             return
-        
+
         value = self.grid.code_array.cell_attributes[self.cursor]["frozen"]
-        
+
         if value:
             value = False
-            
+
         else:
             res = self.grid.code_array._eval_cell(self.cursor)
-            
-            if res is None:
-                value = " "
-            
-            else:
-                value = str(res)
-            
+
+            value = " " if res is None else str(res)
         # Set the new frozen state / code
-        
+
         self.set_attr("frozen", value)
     
     attr_toggle_values = { \
@@ -299,20 +290,20 @@ class CellActions(object):
         
         cell_attributes = self.grid.code_array.cell_attributes
         attr_values = self.attr_toggle_values[attr_key]
-        
+
         # Map attr_value to next attr_value
         attr_map = dict(zip(attr_values, attr_values[1:] + attr_values[:1]))
-        
+
         selection_attrs = \
-            (attr for attr in cell_attributes if attr[0] == selection)
-                    
+                (attr for attr in cell_attributes if attr[0] == selection)
+
         attrs = {}
         for selection_attr in selection_attrs:
-            attrs.update(selection_attr[2])
-            
+            attrs |= selection_attr[2]
+
         if attr_key in attrs:
             return attr_map[attrs[attr_key]]
-            
+
         else:
             # Default next value
             return self.attr_toggle_values[attr_key][1]

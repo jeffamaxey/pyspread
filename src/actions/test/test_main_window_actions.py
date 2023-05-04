@@ -6,7 +6,7 @@ from sys import path
 import csv
 
 test_path = os.path.dirname(os.path.realpath(__file__))
-path.insert(0, test_path + "/../..")
+path.insert(0, f"{test_path}/../..")
 
 import wx
 app = wx.App()
@@ -41,17 +41,15 @@ class TestCsvInterface(object):
         
         
     def _get_csv_gen(self, filename, digest_types=None):
-        test_file = open(filename)
-        dialect = csv.Sniffer().sniff(test_file.read(1024))
-        test_file.close()
-        
+        with open(filename) as test_file:
+            dialect = csv.Sniffer().sniff(test_file.read(1024))
         if digest_types is None:
             digest_types = [type(1)]
-            
+
         has_header = False
 
         return main_window_actions.CsvInterface( \
-            filename, dialect, digest_types, has_header)
+                filename, dialect, digest_types, has_header)
 
     def test_get_csv_cells_gen(self):
         """Tests generator from csv content"""
@@ -70,17 +68,17 @@ class TestCsvInterface(object):
         """Tests csv generator"""
         
         csv_gen = self._get_csv_gen(self.test_filename)
-        
+
         assert [list(col) for col in csv_gen] == [['1', '2'], ['3', '4']]
-        
+
         csv_gen = self._get_csv_gen(self.test_filename2, digest_types = \
-                  [type("")])
-        
-        
+                      [type("")])
+
+
         for i, col in enumerate(csv_gen):
             list_col = list(col)
             if i < 6:
-                assert list_col == ["'" + str(i + 1) + "'", "''"]
+                assert list_col == [f"'{str(i + 1)}'", "''"]
             else:
                 assert list_col == ["''", "''"]
     
@@ -89,13 +87,12 @@ class TestCsvInterface(object):
         
         csv_gen = self._get_csv_gen(self.test_filename)
         csv_gen.path = self.test_filename3
-        
+
         csv_gen.write(xrange(100) for _ in xrange(100))
-        
-        infile = open(self.test_filename3)
-        content = infile.read()
-        assert content[:10] == "0\t1\t2\t3\t4\t"
-        infile.close()
+
+        with open(self.test_filename3) as infile:
+            content = infile.read()
+            assert content[:10] == "0\t1\t2\t3\t4\t"
 
 
 class TestTxtGenerator(object):

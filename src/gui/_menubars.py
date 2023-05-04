@@ -91,41 +91,41 @@ class _filledMenu(wx.Menu):
                 except ValueError:
                     _, menuname, submenu = item
                     menu_id = -1
-                
+
                 menu = obj()
                 self._add_submenu(menu, submenu)
-                
+
                 if parent == self:
                     self.menubar.Append(menu, menuname)
                 else:
                     parent.AppendMenu(menu_id, menuname, menu)
-                    
+
             elif obj == wx.MenuItem:
                 try:
                     msgtype, shortcut, helptext, item_id = item[1]
                 except ValueError:
                     msgtype, shortcut, helptext = item[1]
                     item_id = wx.NewId()
-                    
+
                 try:
                     style = item[2]
                 except IndexError:
                     style = wx.ITEM_NORMAL
-                
+
                 menuitem = obj(parent, item_id, shortcut, helptext, style)
 
                 parent.AppendItem(menuitem)
-                
-                if "&Approve file" == shortcut:
+
+                if shortcut == "&Approve file":
                     self.approve_item = menuitem
-                
+
                 self.ids_msgs[item_id] = msgtype
-                
+
                 self.parent.Bind(wx.EVT_MENU, self.OnMenu, id=item_id)
-                
+
             elif obj == "Separator":
                 parent.AppendSeparator()
-                
+
             else:
                 raise TypeError, "Menu item unknown"
 
